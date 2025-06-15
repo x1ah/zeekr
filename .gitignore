@@ -194,3 +194,4 @@ cython_debug/
 .cursorindexingignore
 
 config.py
+.python-version

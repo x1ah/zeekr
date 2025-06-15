@@ -35,6 +35,7 @@ class LarkNotify:
         try:
             response = requests.post(self.webhook, json=payload)
             response.raise_for_status()
+            print(message)
         except RequestException as e:
             print(f"发送消息失败: {e}")
 
