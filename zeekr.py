@@ -2,17 +2,17 @@
 极氪汽车签到脚本
 """
 
-import json
+import base64
 import random
 import string
 import time
 import hashlib
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime
 
 import requests
 from requests.exceptions import RequestException
-from config import FEISHU_WEBHOOK, JWT_TOKWN, DEVICE_ID
+from config import FEISHU_WEBHOOK, JWT_TOKWN, DEVICE_ID, ACCOUNT_ID
 
 
 class LarkNotify:
@@ -40,12 +40,11 @@ class LarkNotify:
             print(f"发送消息失败: {e}")
 
 
-class Zeeker:
-    """极氪汽车签到类"""
+class ZeekrHeader:
+    """生成请求参数"""
 
-    def __init__(self, lark_notify: LarkNotify):
-        # 基础请求头
-        self.base_headers = {
+    def __init__(self, headers: Dict[str, str] = {}):
+        base_headers = {
             "Host": "api-gw-toc.zeekrlife.com",
             "AppId": "ONEX97FB91F061405",
             "Referer": "https://activity-h5.zeekrlife.com/",
@@ -65,7 +64,8 @@ class Zeeker:
             "app_type": "h5",
             "Authorization": f"Bearer {JWT_TOKWN}",
         }
-        self.lark_notify = lark_notify
+        base_headers.update(headers)
+        self.base_headers = base_headers
 
     def get_random_string(self, length: int) -> str:
         """生成指定长度的随机字符串"""
@@ -95,12 +95,21 @@ class Zeeker:
         })
         return headers
 
+
+class Zeekr:
+    """极氪 APP 集碎片"""
+
+    def __init__(self, lark_notify: LarkNotify):
+        # 基础请求头
+        self.header = ZeekrHeader()
+        self.lark_notify = lark_notify
+
     def sign_in(self) -> None:
-        """执行签到"""
+        """每日签到"""
         try:
             response = requests.post(
                 "https://api-gw-toc.zeekrlife.com/zeekrlife-mp-val/toc/v1/zgreen/center",
-                headers=self.get_headers(),
+                headers=self.header.get_headers(),
                 json={},
             )
             response.raise_for_status()
@@ -125,11 +134,40 @@ class Zeeker:
 
         self.lark_notify.send_message(notify_message)
 
+    def sync_day_walk_data(self) -> None:
+        """更新微信步数"""
+        step_count = random.randint(80000, 90000)
+        secret = ""
+        for i in range(6):
+            secret = base64.b64encode(secret.encode()).decode()
+        
+        data = {
+            "stepCounts": step_count,
+            "stepCountsSecret": secret,
+            "sourceType": 30,
+            "accountId": ACCOUNT_ID,
+        }
+        response = requests.post(
+            "http://api-gw-toc.zeekrlife.com/zeekrlife-mp-val/v1/walkData/initDayWalkData",
+            headers=self.header.get_headers(),
+            json=data,
+        )
+        response.raise_for_status()
+        resp_data = response.json()
+        if resp_data.get("code") == "000000":
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 更新微信步数成功: {step_count}"
+        else:
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 更新微信步数失败: {resp_data.get('msg')}"
+
+        self.lark_notify.send_message(notify_message)
+
+
     def run(self) -> None:
         self.sign_in()
+        self.sync_day_walk_data()
 
 
 if __name__ == "__main__":
     lark_notify = LarkNotify(FEISHU_WEBHOOK)
-    zeeker = Zeeker(lark_notify)
+    zeeker = Zeekr(lark_notify)
     zeeker.run() 
