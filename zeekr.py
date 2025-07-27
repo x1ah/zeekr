@@ -137,7 +137,7 @@ class Zeekr:
     def sync_day_walk_data(self) -> None:
         """更新微信步数"""
         step_count = random.randint(80000, 90000)
-        secret = ""
+        secret = f"{step_count}_salt"
         for i in range(6):
             secret = base64.b64encode(secret.encode()).decode()
         
@@ -161,10 +161,25 @@ class Zeekr:
 
         self.lark_notify.send_message(notify_message)
 
+    def read_article(self) -> None:
+        """每日阅读指定文章"""
+        response = requests.get(
+            "https://api-gw-toc.zeekrlife.com/zeekrlife-bbs-theme/v1/invitation/pub/detail?id=1927552810704109568",
+            headers=self.header.get_headers(),
+        )
+        response.raise_for_status()
+        resp_data = response.json()
+        if resp_data.get("code") == "000000":
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章成功"
+        else:
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章失败: {resp_data.get('msg')}"
+
+        self.lark_notify.send_message(notify_message)
 
     def run(self) -> None:
         self.sign_in()
         self.sync_day_walk_data()
+        self.read_article()
 
 
 if __name__ == "__main__":
