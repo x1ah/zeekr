@@ -4,6 +4,7 @@
 
 import base64
 import random
+import re
 import string
 import time
 import hashlib
@@ -163,8 +164,40 @@ class Zeekr:
 
     def read_article(self) -> None:
         """每日阅读指定文章"""
+        response = requests.post(
+            "https://api-gw-toc.zeekrlife.com/zeekrlife-mp-mkt/open/v1/taskProgress/taskMsg",
+            headers=self.header.get_headers(),
+            json={
+                "activityRecord": "medal_compose_task_manage",
+                "optional": {
+                    "fetchTaskTakeAndReachTimesInfo": True
+                }
+            },
+        )
+        response.raise_for_status()
+        resp_data = response.json()
+        
+        article_url = ""
+        for item in resp_data.get("data", {}).get("taskReachMsgList", []):
+            if item.get("name") == "阅读文章":
+                article_url = item["doc"]["path"]
+
+        if not article_url:
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章失败: 未找到文章"
+            self.lark_notify.send_message(notify_message)
+            return
+        
+        pattern = r'acticleId=([^&]+)'
+        match = re.search(pattern, article_url)
+        article_id = match.group(1) if match else ""
+
+        if not article_id:
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章失败: 未找到文章 ID"
+            self.lark_notify.send_message(notify_message)
+            return
+        
         response = requests.get(
-            "https://api-gw-toc.zeekrlife.com/zeekrlife-bbs-theme/v1/invitation/pub/detail?id=1927552810704109568",
+            f"https://api-gw-toc.zeekrlife.com/zeekrlife-bbs-theme/v1/invitation/pub/detail?id={article_id}",
             headers=self.header.get_headers(),
         )
         response.raise_for_status()
