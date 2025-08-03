@@ -203,7 +203,8 @@ class Zeekr:
         response.raise_for_status()
         resp_data = response.json()
         if resp_data.get("code") == "000000":
-            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章成功"
+            title = resp_data.get("data", {}).get("title", "")
+            notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章成功: {title}"
         else:
             notify_message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 阅读文章失败: {resp_data.get('msg')}"
 
